@@ -308,6 +308,22 @@
   :root[data-theme="dark"] nav button.on { color: var(--court-light); }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) nav button.on { color: var(--court-light); } }
 
+  /* ---------- Setup extras ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    border: 0; border-radius: 999px; padding: 6px 12px;
+    font-size: 13px; font-weight: 600; background: var(--surface-2); color: var(--ink);
+  }
+  .chip:active { transform: scale(0.96); }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--surface-2); border-radius: 12px; padding: 4px; }
+  .seg button { border: 0; background: transparent; padding: 9px; border-radius: 9px; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+  .seg button.on { background: var(--surface); color: var(--court); box-shadow: var(--shadow); }
+  :root[data-theme="dark"] .seg button.on { color: var(--court-light); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .seg button.on { color: var(--court-light); } }
+  .fmt-desc { margin-top: 6px; font-size: 12px; color: var(--ink-soft); line-height: 1.4; }
+  .cn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cn-grid input { padding: 9px 11px; font-size: 14px; }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -325,7 +341,8 @@
   var msg = "";
   var band = 3.0;
   var draftName = "";
-  var setup = { name: "", courts: 2, target: 11 };
+  var VKEY = "dinkqueue.venues.v1";
+  var setup = { venue: "", name: "", courts: 2, target: 11, format: "balanced", courtNames: ["Court 1", "Court 2"] };
 
   function load() { try { var r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
   function save() { try { S ? localStorage.setItem(KEY, JSON.stringify(S)) : localStorage.removeItem(KEY); } catch (e) {} }
@@ -333,9 +350,24 @@
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   // ---------- domain ----------
-  function createSession(name, courts, target) {
-    return { id: uid(), name: (name || "").trim() || "Open Play", courts: Math.max(1, courts), target: target,
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function defaultCourtNames(n) { var a = []; for (var i = 0; i < n; i++) a.push("Court " + (i + 1)); return a; }
+  function courtLabel(i) { return (S.courtNames && S.courtNames[i]) || ("Court " + (i + 1)); }
+  function createSession(o) {
+    var courts = Math.max(1, o.courts);
+    var names = (o.courtNames || defaultCourtNames(courts)).slice(0, courts).map(function (n, i) { return (n || "").trim() || ("Court " + (i + 1)); });
+    return { id: uid(), name: (o.name || "").trim() || "Open Play", courts: courts, target: o.target,
+      venue: (o.venue || "").trim() || null, courtNames: names, format: o.format || "balanced",
       players: [], rounds: [], currentRound: -1, createdAt: Date.now() };
+  }
+  function loadVenues() { try { var r = localStorage.getItem(VKEY); return r ? JSON.parse(r) : []; } catch (e) { return []; } }
+  function rememberVenue() {
+    if (!S || !S.venue) return;
+    try {
+      var e = { venue: S.venue, courts: S.courts, courtNames: S.courtNames, target: S.target, format: S.format };
+      var rest = loadVenues().filter(function (v) { return v.venue.toLowerCase() !== e.venue.toLowerCase(); });
+      localStorage.setItem(VKEY, JSON.stringify([e].concat(rest).slice(0, 8)));
+    } catch (x) {}
   }
   function addPlayer(name, b) {
     var t = (name || "").trim(); if (!t) return;
@@ -353,6 +385,7 @@
     return { a: [s[0].id, s[3].id], b: [s[1].id, s[2].id] };
   }
   function generateRound(players, courts, roundIndex) {
+    if (S.format === "challenge") return generateChallenge(players, courts, roundIndex);
     var avail = players.filter(function (p) { return p.active; });
     if (avail.length < 4) return { round: null, message: "Need at least 4 checked-in players to start a round (have " + avail.length + ")." };
     var cap = courts * 4;
@@ -367,6 +400,48 @@
       matches.push({ courtIndex: c, a: pair.a, b: pair.b, winner: null });
     }
     return { round: { index: roundIndex, matches: matches, resting: resting, finalized: false } };
+  }
+  function generateChallenge(players, courts, roundIndex) {
+    var active = players.filter(function (p) { return p.active; });
+    var effCourts = Math.min(courts, Math.floor(active.length / 4));
+    if (effCourts < 1) return { round: null, message: "Need at least 4 checked-in players to start a round (have " + active.length + ")." };
+    var maxCourt = effCourts - 1;
+    var ladder = {};
+    var allNull = active.every(function (p) { return p.court == null; });
+    if (allNull) {
+      active.slice().sort(function (a, b) { return b.rating - a.rating || (a.id < b.id ? -1 : 1); })
+        .forEach(function (p, i) { ladder[p.id] = Math.min(Math.floor(i / 4), maxCourt); });
+    } else {
+      active.forEach(function (p) { ladder[p.id] = p.court == null ? maxCourt : clamp(p.court, 0, maxCourt); });
+    }
+    var order = active.slice().sort(function (a, b) {
+      if (ladder[a.id] !== ladder[b.id]) return ladder[a.id] - ladder[b.id];
+      if (a.lastPlayedRound !== b.lastPlayedRound) return a.lastPlayedRound - b.lastPlayedRound;
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      return a.id < b.id ? -1 : 1;
+    });
+    var seats = effCourts * 4;
+    var seated = order.slice(0, seats);
+    var resting = order.slice(seats).map(function (p) { return p.id; });
+    var matches = [], courtOf = {};
+    for (var c = 0; c < effCourts; c++) {
+      var four = seated.slice(c * 4, c * 4 + 4);
+      four.forEach(function (p) { courtOf[p.id] = c; });
+      var pair = balanceFour(four);
+      matches.push({ courtIndex: c, a: pair.a, b: pair.b, winner: null });
+    }
+    resting.forEach(function (id) { courtOf[id] = maxCourt; });
+    return { round: { index: roundIndex, matches: matches, resting: resting, finalized: false }, courtOf: courtOf };
+  }
+  function challengeMovement(round) {
+    var maxCourt = round.matches.length - 1, moves = {};
+    round.matches.forEach(function (m) {
+      if (!m.winner) return;
+      var w = m.winner === "a" ? m.a : m.b, l = m.winner === "a" ? m.b : m.a;
+      w.forEach(function (id) { moves[id] = Math.max(m.courtIndex - 1, 0); });
+      l.forEach(function (id) { moves[id] = Math.min(m.courtIndex + 1, maxCourt); });
+    });
+    return moves;
   }
   function expected(rA, rB) { return 1 / (1 + Math.pow(10, (rB - rA) / 1.0)); }
   function clampSwing(d) { return Math.max(-0.06, Math.min(0.06, d)); }
@@ -395,10 +470,12 @@
       for (var k in ch) updates[k] = ch[k];
       mt.a.concat(mt.b).forEach(function (id) { seated[id] = true; });
     });
+    var moves = S.format === "challenge" ? challengeMovement(round) : {};
     S.players.forEach(function (p) {
       if (!seated[p.id]) return;
       if (updates[p.id] != null) p.rating = updates[p.id];
       p.gamesPlayed += 1; p.lastPlayedRound = ri;
+      if (p.id in moves) p.court = moves[p.id];
     });
     round.finalized = true;
   }
@@ -407,6 +484,7 @@
     var idx = S.rounds.length;
     var plan = generateRound(S.players, S.courts, idx);
     if (!plan.round) { msg = plan.message; return false; }
+    if (plan.courtOf) S.players.forEach(function (p) { if (p.id in plan.courtOf) p.court = plan.courtOf[p.id]; });
     S.rounds.push(plan.round); S.currentRound = idx; msg = "";
     return true;
   }
@@ -427,6 +505,20 @@
 
   // ---------- views ----------
   function viewSetup() {
+    var venues = loadVenues();
+    var chips = venues.length
+      ? '<div><span class="lab" style="color:var(--ink-faint)">Recent venues</span>' +
+          '<div class="chips">' + venues.map(function (v, i) {
+            return '<button type="button" class="chip" data-act="venue-pick" data-i="' + i + '">' + esc(v.venue) + "</button>";
+          }).join("") + "</div></div>"
+      : "";
+    var cnGrid = '<div><span class="lab">Court names</span><div class="cn-grid">' +
+      setup.courtNames.map(function (cn, i) {
+        return '<input type="text" data-cn="' + i + '" placeholder="Court ' + (i + 1) + '" value="' + esc(cn) + '">';
+      }).join("") + "</div></div>";
+    var fmtDesc = setup.format === "balanced"
+      ? "Even matchups every round — strongest paired with weakest."
+      : "King of the court — winners move up, losers move down.";
     return '' +
       '<div class="setup">' +
         '<div class="brand">' +
@@ -435,12 +527,21 @@
           '<p>Fair court time, balanced games, no whiteboard. Run your open play right from your phone.</p>' +
         '</div>' +
         '<div class="card">' +
+          chips +
+          '<div><span class="lab">Venue</span>' +
+            '<input type="text" id="s-venue" placeholder="Vantage Pickleball, Parañaque" value="' + esc(setup.venue) + '"></div>' +
           '<div><span class="lab">Session name</span>' +
             '<input type="text" id="s-name" placeholder="Friday Night Open Play" value="' + esc(setup.name) + '"></div>' +
           '<div class="row2">' +
             stepper("courts", "Courts", setup.courts, "") +
             stepper("target", "Play to", setup.target, "pts") +
           '</div>' +
+          '<div><span class="lab">Format</span>' +
+            '<div class="seg">' +
+              '<button type="button" data-act="format" data-fmt="balanced" class="' + (setup.format === "balanced" ? "on" : "") + '">Balanced</button>' +
+              '<button type="button" data-act="format" data-fmt="challenge" class="' + (setup.format === "challenge" ? "on" : "") + '">Challenge</button>' +
+            '</div><div class="fmt-desc">' + fmtDesc + '</div></div>' +
+          cnGrid +
           '<button class="btn-primary" data-act="start-session">Start session</button>' +
         '</div>' +
         '<div class="fineprint">Everything runs on this device — no account, works offline court-side.</div>' +
@@ -508,7 +609,7 @@
   }
   function courtCard(m) {
     return '<div class="court">' +
-      '<div class="court-top"><span class="cn">Court ' + (m.courtIndex + 1) + "</span>" +
+      '<div class="court-top"><span class="cn">' + esc(courtLabel(m.courtIndex)) + "</span>" +
         '<span class="hint">' + (m.winner ? "tap winner again to undo" : "tap the winner · to " + S.target) + "</span></div>" +
       '<div class="sides">' +
         side(m, "a") + '<div class="vs">VS</div>' + side(m, "b") +
@@ -561,7 +662,7 @@
     app.innerHTML =
       '<div class="wrap">' +
         "<header><div class=\"title\"><h2>" + esc(S.name) + "</h2>" +
-          "<div class=\"sub\">" + S.courts + " court" + (S.courts === 1 ? "" : "s") + " · to " + S.target + " · round " + rn + "</div></div>" +
+          "<div class=\"sub\">" + (S.venue ? esc(S.venue) + " · " : "") + (S.format === "challenge" ? "Challenge" : "Balanced") + " · to " + S.target + " · round " + rn + "</div></div>" +
           "<button class=\"end\" data-act=\"end\">End</button></header>" +
         "<main>" + body + "</main>" +
         "<nav>" +
@@ -579,18 +680,31 @@
   document.addEventListener("input", function (e) {
     if (e.target.id === "p-name") draftName = e.target.value;
     if (e.target.id === "s-name") setup.name = e.target.value;
+    if (e.target.id === "s-venue") setup.venue = e.target.value;
+    if (e.target.hasAttribute && e.target.hasAttribute("data-cn")) setup.courtNames[+e.target.getAttribute("data-cn")] = e.target.value;
   });
   document.addEventListener("click", function (e) {
     var t = e.target.closest("[data-act]"); if (!t) return;
     var act = t.getAttribute("data-act");
     if (act === "step") {
       var key = t.getAttribute("data-key"), dir = +t.getAttribute("data-dir");
-      if (key === "courts") setup.courts = Math.min(12, Math.max(1, setup.courts + dir));
-      else setup.target = Math.min(21, Math.max(7, setup.target + dir * 2));
+      if (key === "courts") {
+        setup.courts = Math.min(12, Math.max(1, setup.courts + dir));
+        var out = defaultCourtNames(setup.courts);
+        for (var i = 0; i < setup.courts; i++) if (setup.courtNames[i]) out[i] = setup.courtNames[i];
+        setup.courtNames = out;
+      } else setup.target = Math.min(21, Math.max(7, setup.target + dir * 2));
+      render();
+    } else if (act === "format") {
+      setup.format = t.getAttribute("data-fmt"); render();
+    } else if (act === "venue-pick") {
+      var v = loadVenues()[+t.getAttribute("data-i")];
+      if (v) { setup.venue = v.venue; setup.courts = v.courts; setup.target = v.target; setup.format = v.format; setup.courtNames = v.courtNames.slice(0, v.courts); }
       render();
     } else if (act === "start-session") {
       var nm = document.getElementById("s-name"); if (nm) setup.name = nm.value;
-      S = createSession(setup.name, setup.courts, setup.target); tab = "players"; save(); render();
+      var vn = document.getElementById("s-venue"); if (vn) setup.venue = vn.value;
+      S = createSession(setup); rememberVenue(); tab = "players"; save(); render();
     } else if (act === "band") { band = +t.getAttribute("data-b"); render();
     } else if (act === "add") {
       var inp = document.getElementById("p-name"); var v = inp ? inp.value : draftName;

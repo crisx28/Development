@@ -13,15 +13,23 @@ the rotation algorithm, and the roadmap.
 
 ## What it does (v1)
 
-- **Create a session** — name, number of courts, points to win.
+- **Create a session** — venue, named courts, number of courts, points to win.
+- **Two formats** —
+  - *Balanced*: seats the longest-rested players, then pairs
+    strongest-with-weakest on each court to kill blowouts.
+  - *Challenge* (king-of-the-court): Court 1 is the top court, winners move up,
+    losers move down, and resters cycle in at the bottom.
+- **Saved venues** — reuse a previous venue's court setup in one tap.
 - **Check players in** and tag each with a skill band (2.0–5.0).
-- **Auto-balanced rounds** — seats the players who've rested longest, then pairs
-  strongest-with-weakest on each court to kill blowouts.
 - **Live queue** — who's on which court, who's resting, games-played counts.
-- **Tap the winner** — records the result and updates ratings.
+- **Tap the winner** — records the result and updates ratings (correctable until
+  you advance the round).
 - **Local ratings & standings** — an Elo-style rating nudges after every game.
 - **Runs on-device** — state lives in `localStorage`, installs as a PWA, and
   keeps working on flaky court Wi-Fi. No account needed.
+
+A dependency-free single-file build lives in [`artifact/dinkqueue.html`](artifact/dinkqueue.html)
+for opening directly on a phone or publishing as an Artifact.
 
 ## Tech
 

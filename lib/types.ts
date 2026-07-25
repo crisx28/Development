@@ -10,7 +10,15 @@ export interface Player {
   lastPlayedRound: number;
   /** Checked in and available to be seated */
   active: boolean;
+  /**
+   * Ladder position for challenge-court mode: the court index the player is
+   * currently on (0 = top court). Undefined in balanced mode.
+   */
+  court?: number;
 }
+
+/** How the app assigns players to courts each round. */
+export type Format = "balanced" | "challenge";
 
 export interface Match {
   courtIndex: number;
@@ -36,6 +44,12 @@ export interface Session {
   courts: number;
   /** Points to win a game */
   target: number;
+  /** Optional venue label, e.g. "Vantage Pickleball, Parañaque" */
+  venue?: string;
+  /** Optional per-court labels; index i is the name for court i. */
+  courtNames?: string[];
+  /** Court-assignment format. Defaults to "balanced". */
+  format: Format;
   players: Player[];
   rounds: Round[];
   /** Index of the round currently in play, or -1 if none generated yet */

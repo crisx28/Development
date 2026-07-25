@@ -1,8 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { balanceFour, generateRound, seatingOrder } from "./rotation.ts";
+import {
+  balanceFour,
+  generateRound,
+  seatingOrder,
+  challengeMovement,
+} from "./rotation.ts";
 import { applyResult } from "./rating.ts";
-import type { Player } from "./types.ts";
+import type { Player, Round } from "./types.ts";
 
 function mkPlayer(id: string, rating: number, opts: Partial<Player> = {}): Player {
   return {
@@ -81,4 +86,58 @@ test("upset winner gains more than expected winner", () => {
   const upset = applyResult(underdog, favorite, "a");
   const gain = upset.find((c) => c.playerId === "u1")!;
   assert.ok(gain.after - gain.before > 0.03);
+});
+
+// --- challenge-court mode ---
+
+test("challenge first round seeds top court by rating", () => {
+  const ratings = [4.0, 3.8, 3.6, 3.4, 3.2, 3.0, 2.8, 2.6];
+  const players = ratings.map((r, i) => mkPlayer(`p${i}`, r));
+  const { round } = generateRound(players, 2, 0, { format: "challenge" });
+  assert.ok(round);
+  const court0 = new Set([...round!.matches[0].a, ...round!.matches[0].b]);
+  // The four strongest belong on the top court.
+  assert.deepEqual(court0, new Set(["p0", "p1", "p2", "p3"]));
+});
+
+test("challengeMovement moves winners up and losers down, clamped", () => {
+  const round: Round = {
+    index: 0,
+    resting: [],
+    matches: [
+      { courtIndex: 0, a: ["a", "b"], b: ["c", "d"], winner: "a" },
+      { courtIndex: 1, a: ["e", "f"], b: ["g", "h"], winner: "b" },
+    ],
+  };
+  const moves = challengeMovement(round);
+  // Top court winners stay at 0; their losers drop to 1.
+  assert.equal(moves.a, 0);
+  assert.equal(moves.c, 1);
+  // Bottom court winners climb to 0; their losers stay at 1 (clamped).
+  assert.equal(moves.g, 0);
+  assert.equal(moves.e, 1);
+});
+
+test("challenge cycles the longest-rested player back in", () => {
+  // 5 players, 1 court: 4 seats, 1 rests. All on the bottom court already.
+  const players = [
+    mkPlayer("a", 4.0, { court: 0, lastPlayedRound: 5 }),
+    mkPlayer("b", 3.8, { court: 0, lastPlayedRound: 5 }),
+    mkPlayer("c", 3.6, { court: 0, lastPlayedRound: 5 }),
+    mkPlayer("d", 3.4, { court: 0, lastPlayedRound: 5 }),
+    mkPlayer("rested", 2.0, { court: 0, lastPlayedRound: 2 }),
+  ];
+  const { round } = generateRound(players, 1, 6, { format: "challenge" });
+  assert.ok(round);
+  const seated = new Set([...round!.matches[0].a, ...round!.matches[0].b]);
+  // The player who sat out longest gets a game despite the lowest rating.
+  assert.ok(seated.has("rested"));
+  assert.equal(round!.resting.length, 1);
+});
+
+test("challenge refuses fewer than four active players", () => {
+  const players = [mkPlayer("a", 3), mkPlayer("b", 3), mkPlayer("c", 3)];
+  const { round, message } = generateRound(players, 2, 0, { format: "challenge" });
+  assert.equal(round, null);
+  assert.match(message!, /at least 4/);
 });

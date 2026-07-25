@@ -6,6 +6,7 @@ import {
   addPlayer,
   createSession,
   loadSession,
+  rememberVenue,
   removePlayer,
   saveSession,
   setWinner,
@@ -41,8 +42,10 @@ export default function Home() {
   if (!session) {
     return (
       <SetupScreen
-        onCreate={(name, courts, target) => {
-          setSession(createSession(name, courts, target));
+        onCreate={(opts) => {
+          const created = createSession(opts);
+          rememberVenue(created);
+          setSession(created);
           setTab("players");
         }}
       />
@@ -75,8 +78,9 @@ export default function Home() {
             <h1 className="truncate text-lg font-black leading-tight text-court dark:text-court-light">
               {session.name}
             </h1>
-            <p className="text-xs text-neutral-400">
-              {session.courts} court{session.courts === 1 ? "" : "s"} · to{" "}
+            <p className="truncate text-xs text-neutral-400">
+              {session.venue ? `${session.venue} · ` : ""}
+              {session.format === "challenge" ? "Challenge" : "Balanced"} · to{" "}
               {session.target} · round {Math.max(session.currentRound + 1, 0)}
             </p>
           </div>

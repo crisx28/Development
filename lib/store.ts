@@ -1,5 +1,5 @@
-import type { Player, Session, Round } from "./types";
-import { generateRound, type RoundPlan } from "./rotation";
+import type { Player, Session, Round, Format } from "./types";
+import { generateRound, challengeMovement, type RoundPlan } from "./rotation";
 import { applyResult } from "./rating";
 
 const STORAGE_KEY = "dinkqueue.session.v1";
@@ -8,21 +8,41 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function createSession(
-  name: string,
-  courts: number,
-  target: number
-): Session {
+export interface NewSession {
+  name: string;
+  courts: number;
+  target: number;
+  venue?: string;
+  courtNames?: string[];
+  format?: Format;
+}
+
+export function defaultCourtNames(courts: number): string[] {
+  return Array.from({ length: courts }, (_, i) => `Court ${i + 1}`);
+}
+
+export function createSession(opts: NewSession): Session {
+  const courts = Math.max(1, opts.courts);
+  const names = (opts.courtNames ?? defaultCourtNames(courts))
+    .slice(0, courts)
+    .map((n, i) => n.trim() || `Court ${i + 1}`);
   return {
     id: uid(),
-    name: name.trim() || "Open Play",
-    courts: Math.max(1, courts),
-    target,
+    name: opts.name.trim() || "Open Play",
+    courts,
+    target: opts.target,
+    venue: opts.venue?.trim() || undefined,
+    courtNames: names,
+    format: opts.format ?? "balanced",
     players: [],
     rounds: [],
     currentRound: -1,
     createdAt: Date.now(),
   };
+}
+
+export function courtLabel(session: Session, courtIndex: number): string {
+  return session.courtNames?.[courtIndex] ?? `Court ${courtIndex + 1}`;
 }
 
 export function addPlayer(session: Session, name: string, band: number): Session {
@@ -83,6 +103,10 @@ export function finalizeRound(session: Session, roundIndex: number): Session {
     [...match.a, ...match.b].forEach((id) => seated.add(id));
   }
 
+  // In challenge mode, winners climb a court and losers drop one.
+  const moves =
+    session.format === "challenge" ? challengeMovement(round) : {};
+
   const players = session.players.map((p) => {
     if (!seated.has(p.id)) return p;
     return {
@@ -90,6 +114,7 @@ export function finalizeRound(session: Session, roundIndex: number): Session {
       rating: ratingUpdates.get(p.id) ?? p.rating,
       gamesPlayed: p.gamesPlayed + 1,
       lastPlayedRound: roundIndex,
+      court: p.id in moves ? moves[p.id] : p.court,
     };
   });
 
@@ -114,12 +139,27 @@ export function startNextRound(session: Session): {
       : session;
 
   const nextIndex = base.rounds.length;
-  const plan = generateRound(base.players, base.courts, nextIndex);
+  const prevRound =
+    session.currentRound >= 0 ? base.rounds[session.currentRound] : null;
+  const plan = generateRound(base.players, base.courts, nextIndex, {
+    format: base.format,
+    prevRound,
+  });
   if (!plan.round) return { session: base, plan };
+
+  // Challenge mode records each seated player's ladder position for next round.
+  const players = plan.courtOf
+    ? base.players.map((p) =>
+        plan.courtOf && p.id in plan.courtOf
+          ? { ...p, court: plan.courtOf[p.id] }
+          : p
+      )
+    : base.players;
 
   return {
     session: {
       ...base,
+      players,
       rounds: [...base.rounds, plan.round],
       currentRound: nextIndex,
     },
@@ -182,5 +222,49 @@ export function saveSession(session: Session | null): void {
     else window.localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* storage full or unavailable — ignore for v1 */
+  }
+}
+
+// --- saved venues (reuse setups) ---
+
+const VENUES_KEY = "dinkqueue.venues.v1";
+const MAX_VENUES = 8;
+
+export interface SavedVenue {
+  venue: string;
+  courts: number;
+  courtNames: string[];
+  target: number;
+  format: Format;
+}
+
+export function loadVenues(): SavedVenue[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(VENUES_KEY);
+    return raw ? (JSON.parse(raw) as SavedVenue[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Remember a session's setup so it can be reused, most-recent first. */
+export function rememberVenue(session: Session): void {
+  if (typeof window === "undefined" || !session.venue) return;
+  try {
+    const entry: SavedVenue = {
+      venue: session.venue,
+      courts: session.courts,
+      courtNames: session.courtNames ?? defaultCourtNames(session.courts),
+      target: session.target,
+      format: session.format,
+    };
+    const rest = loadVenues().filter(
+      (v) => v.venue.toLowerCase() !== entry.venue.toLowerCase()
+    );
+    const next = [entry, ...rest].slice(0, MAX_VENUES);
+    window.localStorage.setItem(VENUES_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
   }
 }
