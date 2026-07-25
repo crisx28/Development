@@ -13,12 +13,14 @@ import {
   startNextRound,
   togglePlayerActive,
 } from "@/lib/store";
+import { syncSessionToRegulars } from "@/lib/regulars";
 import { SetupScreen } from "@/components/SetupScreen";
 import { Roster } from "@/components/Roster";
 import { LiveRound } from "@/components/LiveRound";
 import { Standings } from "@/components/Standings";
+import { Regulars } from "@/components/Regulars";
 
-type Tab = "players" | "rounds" | "standings";
+type Tab = "players" | "rounds" | "standings" | "regulars";
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
@@ -32,9 +34,12 @@ export default function Home() {
     setHydrated(true);
   }, []);
 
-  // Persist on every change.
+  // Persist on every change, and fold the session into the cross-session
+  // regulars registry (idempotent, so calling it on each change is safe).
   useEffect(() => {
-    if (hydrated) saveSession(session);
+    if (!hydrated) return;
+    saveSession(session);
+    if (session) syncSessionToRegulars(session);
   }, [session, hydrated]);
 
   if (!hydrated) return null; // avoid hydration flash
@@ -114,12 +119,14 @@ export default function Home() {
           />
         )}
         {tab === "standings" && <Standings session={session} />}
+        {tab === "regulars" && <Regulars />}
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-neutral-200 bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/95">
         <TabButton label="Players" icon="👥" active={tab === "players"} onClick={() => setTab("players")} />
         <TabButton label="Rounds" icon="🎾" active={tab === "rounds"} onClick={() => setTab("rounds")} />
         <TabButton label="Standings" icon="🏆" active={tab === "standings"} onClick={() => setTab("standings")} />
+        <TabButton label="Regulars" icon="⭐" active={tab === "regulars"} onClick={() => setTab("regulars")} />
       </nav>
     </div>
   );

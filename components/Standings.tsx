@@ -1,6 +1,7 @@
 "use client";
 
 import type { Session } from "@/lib/types";
+import { resultsMailto } from "@/lib/share";
 import { RatingBadge } from "./ui";
 
 export function Standings({ session }: Props) {
@@ -17,7 +18,18 @@ export function Standings({ session }: Props) {
     );
   }
 
+  const played = ranked.some((p) => p.gamesPlayed > 0);
+
   return (
+    <div className="space-y-3">
+      {played && (
+        <a
+          href={resultsMailto(session)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-court/30 bg-court/5 py-2.5 text-sm font-semibold text-court transition active:scale-[0.99] hover:bg-court/10 dark:border-court/40 dark:text-court-light"
+        >
+          <span>📧</span> Email results
+        </a>
+      )}
     <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800">
       <table className="w-full text-sm">
         <thead>
@@ -62,6 +74,7 @@ export function Standings({ session }: Props) {
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
