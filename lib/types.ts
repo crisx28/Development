@@ -17,8 +17,13 @@ export interface Player {
   court?: number;
 }
 
-/** How the app assigns players to courts each round. */
-export type Format = "balanced" | "challenge";
+/**
+ * How the app assigns players to courts each round.
+ *  - "balanced": Fair Play — teams balanced by skill level (strongest+weakest).
+ *  - "social":   Just for Fun — random teams, levels ignored.
+ *  - "challenge": Challenge ladder — king of the court (winners up, losers down).
+ */
+export type Format = "balanced" | "social" | "challenge";
 
 export interface Match {
   courtIndex: number;
@@ -42,8 +47,10 @@ export interface Session {
   id: string;
   name: string;
   courts: number;
-  /** Points to win a game */
+  /** Points to win a game (official presets: 11, 15, 21) */
   target: number;
+  /** Whether a game must be won by a 2-point margin (official default: true). */
+  winBy2?: boolean;
   /** Optional venue label, e.g. "Vantage Pickleball, Parañaque" */
   venue?: string;
   /** Optional per-court labels; index i is the name for court i. */

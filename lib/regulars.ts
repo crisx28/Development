@@ -15,10 +15,16 @@ export interface RegularRecord {
   /** Latest display casing seen for this player. */
   name: string;
   /** sessionId -> what the player did in that session. */
-  sessions: Record<string, { games: number; wins: number; playedAt: number }>;
+  sessions: Record<
+    string,
+    { games: number; wins: number; playedAt: number; rating?: number }
+  >;
 }
 
 export type RegularsStore = Record<string, RegularRecord>;
+
+/** How to rank the leaderboard. */
+export type LeaderboardSort = "loyal" | "wins" | "winRate" | "rating";
 
 /** Flattened, ranked view for the leaderboard UI. */
 export interface RegularStats {
@@ -29,6 +35,8 @@ export interface RegularStats {
   losses: number;
   /** 0..1; 0 when no games. */
   winRate: number;
+  /** Rating from the player's most recent session (0 if never recorded). */
+  latestRating: number;
   /** ms epoch of the most recent session they played. */
   lastSeen: number;
 }
@@ -74,6 +82,7 @@ export function syncSessionToRegulars(
       games: p.gamesPlayed,
       wins: wins[p.id] ?? 0,
       playedAt: session.createdAt,
+      rating: p.rating,
     };
     store[key] = rec;
     changed = true;
@@ -84,12 +93,16 @@ export function syncSessionToRegulars(
 }
 
 /**
- * Flatten the registry into a ranked leaderboard: most loyal first (sessions
- * attended), then most games, then win rate. This is the "who always visits
- * and plays" answer.
+ * Flatten the registry into a ranked leaderboard. `sortBy` chooses the ranking:
+ *  - "loyal"   most sessions attended (the "who always shows up" answer)
+ *  - "wins"    most games won
+ *  - "winRate" best win %
+ *  - "rating"  highest most-recent rating
+ * Every ordering falls back to sensible tiebreaks so the list is stable.
  */
 export function regularsLeaderboard(
-  store: RegularsStore = loadRegulars()
+  store: RegularsStore = loadRegulars(),
+  sortBy: LeaderboardSort = "loyal"
 ): RegularStats[] {
   const rows: RegularStats[] = Object.values(store).map((rec) => {
     const slots = Object.values(rec.sessions);
@@ -97,6 +110,10 @@ export function regularsLeaderboard(
     const wins = slots.reduce((s, x) => s + x.wins, 0);
     const attended = slots.filter((x) => x.games > 0).length;
     const lastSeen = slots.reduce((s, x) => Math.max(s, x.playedAt), 0);
+    const latest = slots.reduce(
+      (best, x) => (x.playedAt >= best.playedAt ? x : best),
+      { playedAt: -1, rating: 0 } as { playedAt: number; rating?: number }
+    );
     return {
       name: rec.name,
       sessionsAttended: attended,
@@ -104,17 +121,27 @@ export function regularsLeaderboard(
       wins,
       losses: totalGames - wins,
       winRate: totalGames > 0 ? wins / totalGames : 0,
+      latestRating: latest.rating ?? 0,
       lastSeen,
     };
   });
 
-  rows.sort(
-    (a, b) =>
+  const byName = (a: RegularStats, b: RegularStats) => a.name.localeCompare(b.name);
+  const comparators: Record<LeaderboardSort, (a: RegularStats, b: RegularStats) => number> = {
+    loyal: (a, b) =>
       b.sessionsAttended - a.sessionsAttended ||
       b.totalGames - a.totalGames ||
       b.winRate - a.winRate ||
-      a.name.localeCompare(b.name)
-  );
+      byName(a, b),
+    wins: (a, b) =>
+      b.wins - a.wins || b.winRate - a.winRate || b.totalGames - a.totalGames || byName(a, b),
+    winRate: (a, b) =>
+      b.winRate - a.winRate || b.wins - a.wins || b.totalGames - a.totalGames || byName(a, b),
+    rating: (a, b) =>
+      b.latestRating - a.latestRating || b.wins - a.wins || byName(a, b),
+  };
+
+  rows.sort(comparators[sortBy]);
   return rows;
 }
 

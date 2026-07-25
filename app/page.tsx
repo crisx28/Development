@@ -18,9 +18,15 @@ import { SetupScreen } from "@/components/SetupScreen";
 import { Roster } from "@/components/Roster";
 import { LiveRound } from "@/components/LiveRound";
 import { Standings } from "@/components/Standings";
-import { Regulars } from "@/components/Regulars";
+import { Leaderboard } from "@/components/Leaderboard";
 
-type Tab = "players" | "rounds" | "standings" | "regulars";
+type Tab = "players" | "rounds" | "standings" | "leaderboard";
+
+const FORMAT_LABEL = {
+  balanced: "Fair play",
+  social: "Just for fun",
+  challenge: "Challenge",
+} as const;
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
@@ -85,8 +91,9 @@ export default function Home() {
             </h1>
             <p className="truncate text-xs text-neutral-400">
               {session.venue ? `${session.venue} · ` : ""}
-              {session.format === "challenge" ? "Challenge" : "Balanced"} · to{" "}
-              {session.target} · round {Math.max(session.currentRound + 1, 0)}
+              {FORMAT_LABEL[session.format]} · to {session.target}
+              {session.winBy2 ? " (win by 2)" : ""} · round{" "}
+              {Math.max(session.currentRound + 1, 0)}
             </p>
           </div>
           <button
@@ -119,14 +126,14 @@ export default function Home() {
           />
         )}
         {tab === "standings" && <Standings session={session} />}
-        {tab === "regulars" && <Regulars />}
+        {tab === "leaderboard" && <Leaderboard />}
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-neutral-200 bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/95">
         <TabButton label="Players" icon="👥" active={tab === "players"} onClick={() => setTab("players")} />
         <TabButton label="Rounds" icon="🎾" active={tab === "rounds"} onClick={() => setTab("rounds")} />
         <TabButton label="Standings" icon="🏆" active={tab === "standings"} onClick={() => setTab("standings")} />
-        <TabButton label="Regulars" icon="⭐" active={tab === "regulars"} onClick={() => setTab("regulars")} />
+        <TabButton label="Leaderboard" icon="🏅" active={tab === "leaderboard"} onClick={() => setTab("leaderboard")} />
       </nav>
     </div>
   );

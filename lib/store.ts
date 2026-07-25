@@ -12,6 +12,7 @@ export interface NewSession {
   name: string;
   courts: number;
   target: number;
+  winBy2?: boolean;
   venue?: string;
   courtNames?: string[];
   format?: Format;
@@ -31,6 +32,7 @@ export function createSession(opts: NewSession): Session {
     name: opts.name.trim() || "Open Play",
     courts,
     target: opts.target,
+    winBy2: opts.winBy2 ?? true,
     venue: opts.venue?.trim() || undefined,
     courtNames: names,
     format: opts.format ?? "balanced",
@@ -235,6 +237,7 @@ export interface SavedVenue {
   courts: number;
   courtNames: string[];
   target: number;
+  winBy2: boolean;
   format: Format;
 }
 
@@ -257,6 +260,7 @@ export function rememberVenue(session: Session): void {
       courts: session.courts,
       courtNames: session.courtNames ?? defaultCourtNames(session.courts),
       target: session.target,
+      winBy2: session.winBy2 ?? true,
       format: session.format,
     };
     const rest = loadVenues().filter(

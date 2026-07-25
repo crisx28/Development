@@ -115,6 +115,41 @@ test("leaderboard ranks by sessions attended, then games", () => {
   assert.equal(board[1].lastSeen, 3_000);
 });
 
+test("leaderboard sort=wins ranks by wins; latestRating tracks newest session", () => {
+  const rounds = (winner: "a" | "b"): Round[] => [
+    {
+      index: 0,
+      resting: [],
+      finalized: true,
+      matches: [{ courtIndex: 0, a: ["a", "x"], b: ["y", "z"], winner }],
+    },
+  ];
+  const store: RegularsStore = {};
+  // Loyal but low wins: Ana, 2 sessions, 0 wins, latest rating 3.40
+  syncSessionToRegulars(
+    mkSession("s1", [mkPlayer("a", { name: "Ana", gamesPlayed: 1, rating: 3.5 })], rounds("b"), 1_000),
+    store
+  );
+  syncSessionToRegulars(
+    mkSession("s2", [mkPlayer("a", { name: "Ana", gamesPlayed: 1, rating: 3.4 })], rounds("b"), 2_000),
+    store
+  );
+  // Fewer sessions, more wins: Ben, 1 session, 1 win
+  syncSessionToRegulars(
+    mkSession("s3", [mkPlayer("a", { name: "Ben", gamesPlayed: 1, rating: 4.1 })], rounds("a"), 3_000),
+    store
+  );
+
+  const byLoyal = regularsLeaderboard(store, "loyal");
+  assert.equal(byLoyal[0].name, "Ana"); // more sessions
+
+  const byWins = regularsLeaderboard(store, "wins");
+  assert.equal(byWins[0].name, "Ben"); // more wins
+
+  const ana = byLoyal.find((r) => r.name === "Ana")!;
+  assert.equal(ana.latestRating, 3.4); // newest session's rating, not the older 3.5
+});
+
 test("win rate aggregates across sessions", () => {
   const rounds = (winner: "a" | "b"): Round[] => [
     {

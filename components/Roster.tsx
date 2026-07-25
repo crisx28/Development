@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Session } from "@/lib/types";
 import { SKILL_BANDS } from "@/lib/types";
+import { skillLabel } from "@/lib/levels";
 import { RatingBadge } from "./ui";
 
 interface Props {
@@ -46,9 +47,12 @@ export function Roster({ session, onAdd, onToggle, onRemove, onStart }: Props) {
           </button>
         </div>
         <div className="mt-3">
-          <span className="mb-1.5 block text-xs font-medium text-neutral-500">
-            Skill band
-          </span>
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <span className="text-xs font-medium text-neutral-500">Skill level</span>
+            <span className="text-xs font-semibold text-court dark:text-court-light">
+              {skillLabel(band)}
+            </span>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {SKILL_BANDS.map((b) => (
               <button
@@ -102,8 +106,8 @@ export function Roster({ session, onAdd, onToggle, onRemove, onStart }: Props) {
             <div className="min-w-0 flex-1">
               <div className="truncate font-medium">{p.name}</div>
               <div className="text-xs text-neutral-400">
-                {p.gamesPlayed} game{p.gamesPlayed === 1 ? "" : "s"} · started{" "}
-                {p.startRating.toFixed(1)}
+                {p.gamesPlayed} game{p.gamesPlayed === 1 ? "" : "s"} ·{" "}
+                {skillLabel(p.startRating)}
               </div>
             </div>
             <RatingBadge rating={p.rating} />

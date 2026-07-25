@@ -92,7 +92,9 @@ function CourtCard({
       <div className="flex items-center justify-between bg-court px-4 py-2 text-white">
         <span className="text-sm font-bold">{courtLabel(session, match.courtIndex)}</span>
         <span className="text-xs opacity-80">
-          {match.winner ? "tap winner again to undo" : `tap the winner · to ${target}`}
+          {match.winner
+            ? "tap winner again to undo"
+            : `tap the winner · to ${target}${session.winBy2 ? " (by 2)" : ""}`}
         </span>
       </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-stretch">

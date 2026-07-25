@@ -34,6 +34,23 @@ export function balanceFour(four: Player[]): { a: string[]; b: string[] } {
   };
 }
 
+/**
+ * Split four players into two random doubles pairs — "Just for Fun" mode,
+ * where skill level is ignored and the draw is pure luck. Rest-fairness still
+ * governs *who* is seated; only the pairing is random.
+ */
+export function randomPair(
+  four: Player[],
+  rng: () => number = Math.random
+): { a: string[]; b: string[] } {
+  const ids = four.map((p) => p.id);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  return { a: [ids[0], ids[1]], b: [ids[2], ids[3]] };
+}
+
 export interface RoundPlan {
   round: Round | null;
   /** Human-readable reason when a round can't be generated */
@@ -56,6 +73,8 @@ export interface GenerateOptions {
  * Build the next round. Dispatches on format:
  *  - "balanced" (default): seat the longest-rested players and pair each court
  *    strongest-with-weakest to minimise blowouts.
+ *  - "social": same rest-fair seating, but pair each court at random ("just for
+ *    fun" — levels ignored).
  *  - "challenge": king-of-the-court — winners move up a court, losers move down,
  *    resters cycle in at the bottom.
  */
@@ -69,6 +88,8 @@ export function generateRound(
     return generateChallenge(players, courts, roundIndex);
   }
 
+  // Fair Play balances each court; Just for Fun draws random teams.
+  const pair = opts.format === "social" ? randomPair : balanceFour;
   const available = players.filter((p) => p.active);
 
   if (available.length < 4) {
@@ -91,7 +112,7 @@ export function generateRound(
   const matches: Match[] = [];
   for (let c = 0; c < numSeated / 4; c++) {
     const four = seated.slice(c * 4, c * 4 + 4);
-    const { a, b } = balanceFour(four);
+    const { a, b } = pair(four);
     matches.push({ courtIndex: c, a, b, winner: null });
   }
 

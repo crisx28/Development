@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   balanceFour,
   generateRound,
+  randomPair,
   seatingOrder,
   challengeMovement,
 } from "./rotation.ts";
@@ -67,6 +68,29 @@ test("generateRound respects court capacity", () => {
   const { round } = generateRound(players, 2, 0); // cap 8 -> 2 courts, 2 rest
   assert.equal(round!.matches.length, 2);
   assert.equal(round!.resting.length, 2);
+});
+
+test("randomPair always yields a valid 2v2 with all four players", () => {
+  const four = [mkPlayer("a", 4.0), mkPlayer("b", 3.0), mkPlayer("c", 3.5), mkPlayer("d", 2.5)];
+  // Run several times with a deterministic-ish rng to exercise the shuffle.
+  let seed = 1;
+  const rng = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let i = 0; i < 20; i++) {
+    const { a, b } = randomPair(four, rng);
+    assert.equal(a.length, 2);
+    assert.equal(b.length, 2);
+    assert.deepEqual(new Set([...a, ...b]), new Set(["a", "b", "c", "d"]));
+  }
+});
+
+test("social mode seats the same players as balanced, just paired differently", () => {
+  const players = Array.from({ length: 4 }, (_, i) => mkPlayer(`p${i}`, 3 + i * 0.3));
+  const { round } = generateRound(players, 1, 0, { format: "social" });
+  assert.ok(round);
+  assert.equal(round!.matches.length, 1);
+  const seated = new Set([...round!.matches[0].a, ...round!.matches[0].b]);
+  assert.deepEqual(seated, new Set(["p0", "p1", "p2", "p3"]));
+  assert.equal(round!.resting.length, 0);
 });
 
 test("applyResult raises winners, lowers losers, within swing cap", () => {
