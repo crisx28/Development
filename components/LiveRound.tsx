@@ -84,10 +84,15 @@ function CourtCard({
   onPick: (w: "a" | "b") => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800">
+    <div
+      data-testid={`court-${match.courtIndex}`}
+      className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800"
+    >
       <div className="flex items-center justify-between bg-court px-4 py-2 text-white">
         <span className="text-sm font-bold">Court {match.courtIndex + 1}</span>
-        <span className="text-xs opacity-80">to {target}</span>
+        <span className="text-xs opacity-80">
+          {match.winner ? "tap winner again to undo" : `tap the winner · to ${target}`}
+        </span>
       </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-stretch">
         <SideButton
@@ -95,6 +100,7 @@ function CourtCard({
           ids={match.a}
           selected={match.winner === "a"}
           dimmed={match.winner === "b"}
+          testid={`court-${match.courtIndex}-a`}
           onClick={() => onPick("a")}
         />
         <div className="grid place-items-center px-2 text-xs font-bold text-neutral-300">
@@ -105,6 +111,7 @@ function CourtCard({
           ids={match.b}
           selected={match.winner === "b"}
           dimmed={match.winner === "a"}
+          testid={`court-${match.courtIndex}-b`}
           onClick={() => onPick("b")}
         />
       </div>
@@ -117,16 +124,19 @@ function SideButton({
   ids,
   selected,
   dimmed,
+  testid,
   onClick,
 }: {
   session: Session;
   ids: string[];
   selected: boolean;
   dimmed: boolean;
+  testid?: string;
   onClick: () => void;
 }) {
   return (
     <button
+      data-testid={testid}
       onClick={onClick}
       className={`flex flex-col gap-1.5 p-3 text-left transition ${
         selected

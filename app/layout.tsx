@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   description:
     "The live rotation manager for pickleball open play. Fair court time, balanced games, no whiteboard.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

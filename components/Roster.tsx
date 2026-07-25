@@ -10,13 +10,16 @@ interface Props {
   onAdd: (name: string, band: number) => void;
   onToggle: (playerId: string) => void;
   onRemove: (playerId: string) => void;
+  onStart: () => void;
 }
 
-export function Roster({ session, onAdd, onToggle, onRemove }: Props) {
+export function Roster({ session, onAdd, onToggle, onRemove, onStart }: Props) {
   const [name, setName] = useState("");
   const [band, setBand] = useState(3.0);
 
   const activeCount = session.players.filter((p) => p.active).length;
+  // Guide the manager to the next step: only before the first round is drawn.
+  const showStartCta = session.currentRound < 0 && activeCount >= 4;
 
   return (
     <div className="space-y-4">
@@ -114,6 +117,22 @@ export function Roster({ session, onAdd, onToggle, onRemove }: Props) {
           </li>
         ))}
       </ul>
+
+      {session.currentRound < 0 && activeCount > 0 && activeCount < 4 && (
+        <p className="rounded-lg bg-amber-100 px-3 py-2 text-center text-sm text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+          Check in {4 - activeCount} more player
+          {4 - activeCount === 1 ? "" : "s"} to start.
+        </p>
+      )}
+
+      {showStartCta && (
+        <button
+          onClick={onStart}
+          className="w-full rounded-xl bg-court py-3.5 text-base font-semibold text-white shadow-sm transition active:scale-[0.99] hover:bg-court-dark"
+        >
+          Start Round 1 with {activeCount} players →
+        </button>
+      )}
     </div>
   );
 }

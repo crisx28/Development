@@ -26,6 +26,8 @@ export interface Round {
   matches: Match[];
   /** Player ids sitting out this round */
   resting: string[];
+  /** Once true, ratings and games-played for this round have been applied. */
+  finalized?: boolean;
 }
 
 export interface Session {

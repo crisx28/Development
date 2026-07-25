@@ -6,9 +6,9 @@ import {
   addPlayer,
   createSession,
   loadSession,
-  recordResult,
   removePlayer,
   saveSession,
+  setWinner,
   startNextRound,
   togglePlayerActive,
 } from "@/lib/store";
@@ -96,6 +96,7 @@ export default function Home() {
             onAdd={(name, band) => setSession(addPlayer(session, name, band))}
             onToggle={(id) => setSession(togglePlayerActive(session, id))}
             onRemove={(id) => setSession(removePlayer(session, id))}
+            onStart={generate}
           />
         )}
         {tab === "rounds" && (
@@ -104,7 +105,7 @@ export default function Home() {
             message={message}
             onGenerate={generate}
             onPickWinner={(court, winner) =>
-              setSession(recordResult(session, session.currentRound, court, winner))
+              setSession(setWinner(session, session.currentRound, court, winner))
             }
           />
         )}

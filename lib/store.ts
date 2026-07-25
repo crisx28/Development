@@ -53,76 +53,107 @@ export function removePlayer(session: Session, playerId: string): Session {
   return { ...session, players: session.players.filter((p) => p.id !== playerId) };
 }
 
-/** Generate and append the next round, advancing currentRound. */
+function playersById(session: Session): Map<string, Player> {
+  return new Map(session.players.map((p) => [p.id, p]));
+}
+
+/**
+ * Finalize a round: apply Elo-style rating changes and bump games-played /
+ * last-played for every decided match. A round is only finalized once (when the
+ * manager advances to the next round), which is what lets winners stay freely
+ * correctable while the round is still in play. Idempotent via the `finalized`
+ * flag.
+ */
+export function finalizeRound(session: Session, roundIndex: number): Session {
+  const round = session.rounds[roundIndex];
+  if (!round || round.finalized) return session;
+
+  const byId = playersById(session);
+  const ratingUpdates = new Map<string, number>();
+  const seated = new Set<string>();
+
+  for (const match of round.matches) {
+    if (!match.winner) continue;
+    const sideA = match.a.map((id) => byId.get(id)!).filter(Boolean);
+    const sideB = match.b.map((id) => byId.get(id)!).filter(Boolean);
+    if (sideA.length < 2 || sideB.length < 2) continue;
+    for (const c of applyResult(sideA, sideB, match.winner)) {
+      ratingUpdates.set(c.playerId, c.after);
+    }
+    [...match.a, ...match.b].forEach((id) => seated.add(id));
+  }
+
+  const players = session.players.map((p) => {
+    if (!seated.has(p.id)) return p;
+    return {
+      ...p,
+      rating: ratingUpdates.get(p.id) ?? p.rating,
+      gamesPlayed: p.gamesPlayed + 1,
+      lastPlayedRound: roundIndex,
+    };
+  });
+
+  const rounds = session.rounds.map((r, i) =>
+    i === roundIndex ? { ...r, finalized: true } : r
+  );
+
+  return { ...session, players, rounds };
+}
+
+/**
+ * Advance the session: finalize the current round (applying ratings), then
+ * generate and append the next one.
+ */
 export function startNextRound(session: Session): {
   session: Session;
   plan: RoundPlan;
 } {
-  const nextIndex = session.rounds.length;
-  const plan = generateRound(session.players, session.courts, nextIndex);
-  if (!plan.round) return { session, plan };
+  const base =
+    session.currentRound >= 0
+      ? finalizeRound(session, session.currentRound)
+      : session;
+
+  const nextIndex = base.rounds.length;
+  const plan = generateRound(base.players, base.courts, nextIndex);
+  if (!plan.round) return { session: base, plan };
+
   return {
     session: {
-      ...session,
-      rounds: [...session.rounds, plan.round],
+      ...base,
+      rounds: [...base.rounds, plan.round],
       currentRound: nextIndex,
     },
     plan,
   };
 }
 
-function playersById(session: Session): Map<string, Player> {
-  return new Map(session.players.map((p) => [p.id, p]));
-}
-
 /**
- * Record the winner of a match in a round. Applies rating changes and, the
- * first time a match is decided, bumps games played / last-played for the
- * four players involved. Re-deciding a match updates ratings idempotently
- * relative to the pre-match ratings is out of scope for v1 — winners are final
- * once tapped, but can be corrected before the next round is generated.
+ * Set (or clear) the winner of a court in a round. No rating side effects —
+ * those are deferred to {@link finalizeRound} — so a manager can freely correct
+ * a mis-tap. Tapping the side that already won clears the result.
  */
-export function recordResult(
+export function setWinner(
   session: Session,
   roundIndex: number,
   courtIndex: number,
   winner: "a" | "b"
 ): Session {
   const round = session.rounds[roundIndex];
-  if (!round) return session;
-  const match = round.matches.find((m) => m.courtIndex === courtIndex);
-  if (!match || match.winner) return session; // already decided; ignore re-taps
-
-  const byId = playersById(session);
-  const sideA = match.a.map((id) => byId.get(id)!).filter(Boolean);
-  const sideB = match.b.map((id) => byId.get(id)!).filter(Boolean);
-  if (sideA.length < 2 || sideB.length < 2) return session;
-
-  const changes = applyResult(sideA, sideB, winner);
-  const changeById = new Map(changes.map((c) => [c.playerId, c.after]));
-  const seated = new Set([...match.a, ...match.b]);
-
-  const players = session.players.map((p) => {
-    if (!seated.has(p.id)) return p;
-    return {
-      ...p,
-      rating: changeById.get(p.id) ?? p.rating,
-      gamesPlayed: p.gamesPlayed + 1,
-      lastPlayedRound: roundIndex,
-    };
-  });
+  if (!round || round.finalized) return session;
 
   const rounds = session.rounds.map((r, i) => {
     if (i !== roundIndex) return r;
     return {
       ...r,
       matches: r.matches.map((m) =>
-        m.courtIndex === courtIndex ? { ...m, winner } : m
+        m.courtIndex === courtIndex
+          ? { ...m, winner: m.winner === winner ? null : winner }
+          : m
       ),
     } as Round;
   });
 
-  return { ...session, players, rounds };
+  return { ...session, rounds };
 }
 
 export function currentRoundComplete(session: Session): boolean {
