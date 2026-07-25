@@ -1,6 +1,7 @@
 import type { Player, Session, Round, Format } from "./types";
 import { generateRound, challengeMovement, type RoundPlan } from "./rotation";
 import { applyResult } from "./rating";
+import { winnerFromScores } from "./score";
 
 const STORAGE_KEY = "dinkqueue.session.v1";
 
@@ -192,6 +193,40 @@ export function setWinner(
           ? { ...m, winner: m.winner === winner ? null : winner }
           : m
       ),
+    } as Round;
+  });
+
+  return { ...session, rounds };
+}
+
+/**
+ * Set (or clear) one side's score for a court. When both sides have a score,
+ * the winner is derived automatically from the higher one (win-by-margin);
+ * an indeterminate score (missing or tied) leaves any tapped winner intact.
+ * Pass null to clear a score. No rating side effects until finalize.
+ */
+export function setScore(
+  session: Session,
+  roundIndex: number,
+  courtIndex: number,
+  side: "a" | "b",
+  value: number | null
+): Session {
+  const round = session.rounds[roundIndex];
+  if (!round || round.finalized) return session;
+
+  const rounds = session.rounds.map((r, i) => {
+    if (i !== roundIndex) return r;
+    return {
+      ...r,
+      matches: r.matches.map((m) => {
+        if (m.courtIndex !== courtIndex) return m;
+        const clean = value == null || Number.isNaN(value) ? undefined : value;
+        const scoreA = side === "a" ? clean : m.scoreA;
+        const scoreB = side === "b" ? clean : m.scoreB;
+        const derived = winnerFromScores(scoreA, scoreB);
+        return { ...m, scoreA, scoreB, winner: derived ?? m.winner };
+      }),
     } as Round;
   });
 

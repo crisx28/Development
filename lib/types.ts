@@ -32,6 +32,9 @@ export interface Match {
   /** Two player ids on side B */
   b: string[];
   winner: "a" | "b" | null;
+  /** Optional final scores. When both are set, the winner is derived from them. */
+  scoreA?: number;
+  scoreB?: number;
 }
 
 export interface Round {

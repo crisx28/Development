@@ -9,9 +9,10 @@ interface Props {
   message?: string;
   onGenerate: () => void;
   onPickWinner: (courtIndex: number, winner: "a" | "b") => void;
+  onSetScore: (courtIndex: number, side: "a" | "b", value: number | null) => void;
 }
 
-export function LiveRound({ session, message, onGenerate, onPickWinner }: Props) {
+export function LiveRound({ session, message, onGenerate, onPickWinner, onSetScore }: Props) {
   const round =
     session.currentRound >= 0 ? session.rounds[session.currentRound] : undefined;
   const complete = round?.matches.every((m) => m.winner !== null) ?? false;
@@ -35,6 +36,7 @@ export function LiveRound({ session, message, onGenerate, onPickWinner }: Props)
                 match={m}
                 target={session.target}
                 onPick={(w) => onPickWinner(m.courtIndex, w)}
+                onSetScore={(side, v) => onSetScore(m.courtIndex, side, v)}
               />
             ))}
           </div>
@@ -78,11 +80,13 @@ function CourtCard({
   match,
   target,
   onPick,
+  onSetScore,
 }: {
   session: Session;
   match: Match;
   target: number;
   onPick: (w: "a" | "b") => void;
+  onSetScore: (side: "a" | "b", value: number | null) => void;
 }) {
   return (
     <div
@@ -118,7 +122,62 @@ function CourtCard({
           onClick={() => onPick("b")}
         />
       </div>
+
+      {/* Optional manual score — the winner is set automatically from the higher score. */}
+      <div className="flex items-center justify-center gap-3 border-t border-neutral-100 bg-neutral-50 px-4 py-2 dark:border-neutral-800 dark:bg-neutral-800/40">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+          Score
+        </span>
+        <ScoreInput
+          value={match.scoreA}
+          testid={`court-${match.courtIndex}-score-a`}
+          highlight={match.winner === "a"}
+          onChange={(v) => onSetScore("a", v)}
+        />
+        <span className="text-sm font-bold text-neutral-300">–</span>
+        <ScoreInput
+          value={match.scoreB}
+          testid={`court-${match.courtIndex}-score-b`}
+          highlight={match.winner === "b"}
+          onChange={(v) => onSetScore("b", v)}
+        />
+        <span className="text-[11px] text-neutral-400">optional</span>
+      </div>
     </div>
+  );
+}
+
+function ScoreInput({
+  value,
+  highlight,
+  testid,
+  onChange,
+}: {
+  value?: number;
+  highlight: boolean;
+  testid?: string;
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={0}
+      max={99}
+      data-testid={testid}
+      value={value ?? ""}
+      onChange={(e) => {
+        const raw = e.target.value;
+        onChange(raw === "" ? null : Number(raw));
+      }}
+      placeholder="–"
+      aria-label="score"
+      className={`w-12 rounded-lg border py-1.5 text-center text-base font-semibold tabular-nums outline-none focus:border-court focus:ring-1 focus:ring-court ${
+        highlight
+          ? "border-court bg-court/10 text-court dark:text-court-light"
+          : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+      }`}
+    />
   );
 }
 

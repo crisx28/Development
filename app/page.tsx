@@ -9,6 +9,7 @@ import {
   rememberVenue,
   removePlayer,
   saveSession,
+  setScore,
   setWinner,
   startNextRound,
   togglePlayerActive,
@@ -122,6 +123,9 @@ export default function Home() {
             onGenerate={generate}
             onPickWinner={(court, winner) =>
               setSession(setWinner(session, session.currentRound, court, winner))
+            }
+            onSetScore={(court, side, value) =>
+              setSession(setScore(session, session.currentRound, court, side, value))
             }
           />
         )}
