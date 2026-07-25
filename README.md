@@ -3,6 +3,8 @@
 **The live rotation manager for pickleball open play.** Fair court time,
 balanced games, no whiteboard.
 
+**Live:** https://crisx28.github.io/dinkqueue/ — works in any phone or desktop browser.
+
 Reclub and Sports360 (the apps Philippine players already use) get you *onto* a
 court and take your payment — then do nothing for the two hours you're actually
 playing. DinkQueue owns that gap: the in-session rotation, skill-balanced
