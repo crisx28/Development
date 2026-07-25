@@ -1,14 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+// Empty locally; "/<repo>" on GitHub Pages. Kept in sync via next.config.mjs.
+const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export const metadata: Metadata = {
   title: "DinkQueue — Open Play Rotation",
   description:
     "The live rotation manager for pickleball open play. Fair court time, balanced games, no whiteboard.",
-  manifest: "/manifest.json",
+  manifest: `${base}/manifest.json`,
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icon.svg" }],
+    icon: [{ url: `${base}/icon.svg`, type: "image/svg+xml" }],
+    apple: [{ url: `${base}/icon.svg` }],
   },
   appleWebApp: {
     capable: true,
@@ -38,7 +41,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `if ('serviceWorker' in navigator) {
               window.addEventListener('load', function () {
-                navigator.serviceWorker.register('/sw.js').catch(function(){});
+                navigator.serviceWorker.register('${base}/sw.js', { scope: '${base}/' }).catch(function(){});
               });
             }`,
           }}

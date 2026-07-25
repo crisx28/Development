@@ -57,6 +57,22 @@ npm test         # run the rotation/rating unit tests
 > `npm test` runs the unit tests with Node's built-in runner and TypeScript
 > type-stripping: `node --experimental-strip-types --test lib/*.test.ts`.
 
+## Deploy (GitHub Pages, push-to-deploy)
+
+The app is a fully static export, hosted from the repo via GitHub Actions —
+no server to run.
+
+1. In the repo: **Settings → Pages → Build and deployment → Source = "GitHub
+   Actions"** (one-time).
+2. Push to the default branch. The
+   [`Deploy to GitHub Pages`](.github/workflows/deploy-pages.yml) workflow builds
+   `next build` (static export to `out/`) and publishes it.
+3. The site goes live at `https://<owner>.github.io/<repo>/`.
+
+The workflow passes `PAGES_BASE_PATH=/<repo>` so all assets, the manifest, and
+the service worker resolve correctly under the project-site subpath. For a
+custom domain or a `<user>.github.io` root site, leave `PAGES_BASE_PATH` unset.
+
 ## Roadmap (short version)
 
 - **v2** — accounts + cloud sync, portable player ratings, a shareable session
