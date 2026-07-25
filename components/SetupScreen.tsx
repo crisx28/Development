@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { Format } from "@/lib/types";
 import { defaultCourtNames, loadVenues, type SavedVenue, type NewSession } from "@/lib/store";
 import { RulesCard } from "./RulesCard";
+import { HowToUse } from "./HowToUse";
+import { FeedbackLink } from "./FeedbackLink";
 
 interface Props {
   onCreate: (opts: NewSession) => void;
@@ -191,11 +193,15 @@ export function SetupScreen({ onCreate }: Props) {
         </button>
       </form>
 
+      <HowToUse />
       <RulesCard />
 
-      <p className="text-center text-xs text-neutral-400">
-        Everything runs on this device — no account, works offline court-side.
-      </p>
+      <div className="flex flex-col items-center gap-2 pt-1 text-center">
+        <FeedbackLink />
+        <p className="text-xs text-neutral-400">
+          Everything runs on this device — no account, works offline court-side.
+        </p>
+      </div>
     </div>
   );
 }

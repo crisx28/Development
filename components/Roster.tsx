@@ -5,6 +5,7 @@ import type { Session } from "@/lib/types";
 import { SKILL_BANDS } from "@/lib/types";
 import { skillLabel } from "@/lib/levels";
 import { RatingBadge } from "./ui";
+import { FeedbackLink } from "./FeedbackLink";
 
 interface Props {
   session: Session;
@@ -137,6 +138,10 @@ export function Roster({ session, onAdd, onToggle, onRemove, onStart }: Props) {
           Start Round 1 with {activeCount} players →
         </button>
       )}
+
+      <div className="pt-2 text-center">
+        <FeedbackLink />
+      </div>
     </div>
   );
 }
