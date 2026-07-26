@@ -54,7 +54,14 @@ export function SetupScreen({ onCreate }: Props) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-7 px-6 py-10">
       <div className="text-center">
-        <div className="mb-3 text-5xl">🥒</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/icon.svg`}
+          alt="DinkQueue logo"
+          width={72}
+          height={72}
+          className="mx-auto mb-3 h-[72px] w-[72px]"
+        />
         <h1 className="text-3xl font-black tracking-tight text-court dark:text-court-light">
           DinkQueue
         </h1>

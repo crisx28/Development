@@ -1,13 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
-  <rect width="192" height="192" rx="42" fill="#0d7a5f"/>
-  <circle cx="96" cy="86" r="46" fill="#c6f43a"/>
-  <g fill="#0a5c48">
-    <circle cx="80" cy="70" r="6"/>
-    <circle cx="104" cy="70" r="6"/>
-    <circle cx="92" cy="94" r="6"/>
-    <circle cx="116" cy="94" r="6"/>
-    <circle cx="80" cy="112" r="6"/>
-    <circle cx="104" cy="112" r="6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192" role="img" aria-label="DinkQueue">
+  <!-- App tile -->
+  <rect width="192" height="192" rx="44" fill="#0d7a5f"/>
+  <!-- Pickle slice: rind ring, flesh, seeds -->
+  <circle cx="96" cy="96" r="66" fill="#4e9e34"/>
+  <circle cx="96" cy="96" r="55" fill="#d3ee79"/>
+  <g fill="#4e9e34">
+    <ellipse cx="96" cy="74" rx="3.6" ry="5.6"/>
+    <ellipse cx="115" cy="85" rx="3.6" ry="5.6"/>
+    <ellipse cx="115" cy="107" rx="3.6" ry="5.6"/>
+    <ellipse cx="96" cy="118" rx="3.6" ry="5.6"/>
+    <ellipse cx="77" cy="107" rx="3.6" ry="5.6"/>
+    <ellipse cx="77" cy="85" rx="3.6" ry="5.6"/>
+    <ellipse cx="96" cy="96" rx="3.6" ry="5.6"/>
   </g>
-  <rect x="56" y="150" width="80" height="12" rx="6" fill="#c6f43a"/>
 </svg>
